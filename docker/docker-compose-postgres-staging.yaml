@@ -1,0 +1,85 @@
+version: '2.3'
+
+services:
+  conductor-server:
+    environment:
+      - CONFIG_PROP=config-postgres-custom.properties
+    image: simplize/conductor-oss-service:staging
+    container_name: conductor-server
+    build:
+      context: ../
+      dockerfile: docker/server/Dockerfile
+    volumes:
+      - ./config:/app/config
+    networks:
+      - internal
+    ports:
+      - 8888:8888
+    depends_on:
+      conductor-elasticsearch:
+        condition: service_healthy
+    links:
+      - conductor-elasticsearch:es
+    healthcheck:
+      test: [ "CMD", "curl","-I" ,"-XGET", "http://localhost:8888/health" ]
+      interval: 60s
+      timeout: 30s
+      retries: 12
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1k"
+        max-file: "3"
+
+  conductor-ui:
+    environment:
+      - WF_SERVER=http://conductor-server:8888
+    image: simplize/conductor-oss-ui:staging
+    container_name: conductor-ui
+    build:
+      context: ../
+      dockerfile: docker/ui/Dockerfile
+    networks:
+      - internal
+    ports:
+      - 5000:5000
+    links:
+      - conductor-server
+    stdin_open: true
+
+  conductor-elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.11
+    environment:
+      - "ES_JAVA_OPTS=-Xms512m -Xmx1024m"
+      - xpack.security.enabled=false
+      - discovery.type=single-node
+      - transport.host=0.0.0.0
+      - http.host=0.0.0.0
+      - network.host=0.0.0.0
+    volumes:
+      - esdata-conductor:/usr/share/elasticsearch/data
+    networks:
+      - internal
+    ports:
+      - 9201:9200
+      - 9200:9200
+      - 9300:9300
+    healthcheck:
+      test: curl http://localhost:9200/_cluster/health -o /dev/null
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1k"
+        max-file: "3"
+
+volumes:
+  pgdata-conductor:
+    driver: local
+  esdata-conductor:
+    driver: local
+
+networks:
+  internal:
