@@ -1,0 +1,23 @@
+version: '2.3'
+
+services:
+  conductor-ui:
+    environment:
+      - WF_SERVER=http://159.223.81.82:8888
+    image: simplize/conductor-oss-ui:staging
+    container_name: conductor-ui
+    build:
+      context: ../
+      dockerfile: docker/ui/Dockerfile
+    networks:
+      - internal
+    ports:
+      - 5000:5000
+    stdin_open: true
+
+volumes:
+  esdata-conductor:
+    driver: local
+
+networks:
+  internal:
